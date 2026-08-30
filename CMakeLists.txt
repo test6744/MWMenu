@@ -72,6 +72,7 @@ add_compile_definitions(YimMenu
     "_CRT_SECURE_NO_WARNINGS"
     "NOMINMAX"
     "WIN32_LEAN_AND_MEAN"
+    "YIM_DEV"
 )
 
 # Optimizations
