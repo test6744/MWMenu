@@ -35,6 +35,12 @@ jobs:
 
       - name: Check if DLL got built
         run: if (-Not (Test-Path -path "build/YimMenu.dll")) {throw 1}
+        
+      - name: Stage debugging DLLs
+        run: |
+          xcopy "C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\dbghelp.dll" "build\" /Y
+          xcopy "C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\symsrv.dll" "build\" /Y
+        shell: cmd
 
       - name: Rename DLL to YimMenu-dev-{GITHUB_SHA}.dll
         run: |
