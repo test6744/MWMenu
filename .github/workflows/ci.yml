@@ -32,24 +32,45 @@ jobs:
         run: if (-Not (Test-Path -path "build/YimMenu.dll")) {throw 1}
         
       - name: Stage debugging DLLs via Visual Studio SDK
+        shell: cmd
         run: |
-          # Run vcvarsall to get the SDK path, then find and copy the files
-          cmd.exe /c "call 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat' x64 && set" | ForEach-Object {
-              if ($_ -match '^WindowsSdkDir=(.*)$') { $script:sdkDir = $Matches[1].Trim() }
-              if ($_ -match '^WindowsSDKVersion=(.*)$') { $script:sdkVer = $Matches[1].Trim() }
-          }
+          @echo off
           
-          $sdkDebuggersX64 = Join-Path $script:sdkDir "Debuggers\x64"
+          :: 1. Extract values directly from runner's pre-initialized environment
+          if "%WindowsSdkDir%"=="" (
+              set "SDK_DIR=C:\Program Files (x86)\Windows Kits\10"
+              set "SDK_VER=10.0.26100.0"
+          ) else (
+              set "SDK_DIR=%WindowsSdkDir%"
+              set "SDK_VER=%WindowsSDKVersion%"
+          )
           
-          # If not found in root Debuggers folder, check the versioned subfolder
-          if (-not (Test-Path (Join-Path $sdkDebuggersX64 "dbghelp.dll"))) {
-              $sdkDebuggersX64 = Join-Path $script:sdkDir "Debuggers\$script:sdkVer\x64"
-          }
-
-          Write-Host "Copying debugging DLLs from: $sdkDebuggersX64"
-          Copy-Item "$sdkDebuggersX64\dbghelp.dll" -Destination "build\" -Force
-          Copy-Item "$sdkDebuggersX64\symsrv.dll" -Destination "build\" -Force
-        shell: powershell
+          :: Strip trailing backslashes if present
+          if "%SDK_DIR:~-1%"=="\" set "SDK_DIR=%SDK_DIR:~0,-1%"
+          if "%SDK_VER:~-1%"=="\" set "SDK_VER=%SDK_VER:~0,-1%"
+          
+          :: 2. Target the architecture folder layout
+          set "DEBUGGERS_DIR=%SDK_DIR%\Debuggers\x64"
+          if not exist "%DEBUGGERS_DIR%\dbghelp.dll" (
+              set "DEBUGGERS_DIR=%SDK_DIR%\Debuggers\%SDK_VER%\x64"
+          )
+          
+          echo Copying debugging DLLs from: %DEBUGGERS_DIR%
+          
+          :: 3. Define explicit workspace target paths matching CMakeSettings layouts
+          :: (We create and copy to both possible Ninja configuration roots)
+          set "TARGET_RELEASE=%GITHUB_WORKSPACE%\build\x64-Release"
+          set "TARGET_DEBUG=%GITHUB_WORKSPACE%\build\x64-Debug-Dev"
+          
+          if not exist "%TARGET_RELEASE%" mkdir "%TARGET_RELEASE%"
+          if not exist "%TARGET_DEBUG%" mkdir "%TARGET_DEBUG%"
+          
+          :: 4. Securely copy files to destinations
+          xcopy "%DEBUGGERS_DIR%\dbghelp.dll" "%TARGET_RELEASE%\" /Y /R /F
+          xcopy "%DEBUGGERS_DIR%\symsrv.dll" "%TARGET_RELEASE%\" /Y /R /F
+          
+          xcopy "%DEBUGGERS_DIR%\dbghelp.dll" "%TARGET_DEBUG%\" /Y /R /F
+          xcopy "%DEBUGGERS_DIR%\symsrv.dll" "%TARGET_DEBUG%\" /Y /R /F
 
       - name: Rename DLL to YimMenu-dev-{GITHUB_SHA}.dll
         run: |
