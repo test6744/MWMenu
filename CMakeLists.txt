@@ -77,14 +77,20 @@ add_compile_definitions(YimMenu
 
 # Optimizations
 if(MSVC)
-    if(OPTIMIZE)
-      set(CMAKE_MODULE_LINKER_FLAGS
-          "${CMAKE_MODULE_LINKER_FLAGS} /LTCG /OPT:REF,ICF /GUARD:NO")
+    if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "Debug")
+        target_compile_options(YimMenu PRIVATE "/Zi")
+        target_link_options(YimMenu PRIVATE "/DEBUG:FULL" "/MAP")
+    endif()
 
-      set(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-          "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /O2 /Oi /Ot /Oy /Ob3 /sdl- /GL /GF /GS- /Gw")
-      string(REPLACE "/Ob1" "/Ob3" CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
+    if(OPTIMIZE)
+        target_link_options(YimMenu PRIVATE "/LTCG" "/OPT:REF,ICF" "/GUARD:NO")
+        if(CMAKE_BUILD_TYPE STREQUAL "Release")
+            target_compile_options(YimMenu PRIVATE "/O2" "/Oi" "/Ot" "/Oy-" "/Ob3" "/sdl-" "/GL" "/GF" "/GS-" "/Gw")
+        endif()
     else()
-        add_compile_definitions(YIM_DEV)
+        target_compile_definitions(YimMenu PRIVATE "YIM_DEV")
+        if(CMAKE_BUILD_TYPE STREQUAL "Release")
+            target_link_options(YimMenu PRIVATE "/OPT:REF,ICF")
+        endif()
     endif()
 endif()
