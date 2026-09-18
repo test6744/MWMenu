@@ -31,11 +31,25 @@ jobs:
       - name: Check if DLL got built
         run: if (-Not (Test-Path -path "build/YimMenu.dll")) {throw 1}
         
-      - name: Stage debugging DLLs
+      - name: Stage debugging DLLs via Visual Studio SDK
         run: |
-          xcopy "C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\dbghelp.dll" "build\" /Y
-          xcopy "C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\symsrv.dll" "build\" /Y
-        shell: cmd
+          # Run vcvarsall to get the SDK path, then find and copy the files
+          cmd.exe /c "call 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat' x64 && set" | ForEach-Object {
+              if ($_ -match '^WindowsSdkDir=(.*)$') { $script:sdkDir = $Matches[1].Trim() }
+              if ($_ -match '^WindowsSDKVersion=(.*)$') { $script:sdkVer = $Matches[1].Trim() }
+          }
+          
+          $sdkDebuggersX64 = Join-Path $script:sdkDir "Debuggers\x64"
+          
+          # If not found in root Debuggers folder, check the versioned subfolder
+          if (-not (Test-Path (Join-Path $sdkDebuggersX64 "dbghelp.dll"))) {
+              $sdkDebuggersX64 = Join-Path $script:sdkDir "Debuggers\$script:sdkVer\x64"
+          }
+
+          Write-Host "Copying debugging DLLs from: $sdkDebuggersX64"
+          Copy-Item "$sdkDebuggersX64\dbghelp.dll" -Destination "build\" -Force
+          Copy-Item "$sdkDebuggersX64\symsrv.dll" -Destination "build\" -Force
+        shell: powershell
 
       - name: Rename DLL to YimMenu-dev-{GITHUB_SHA}.dll
         run: |
