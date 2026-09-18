@@ -86,8 +86,8 @@ jobs:
           name: binary
           path: |
             build/YimMenu-dev-*.dll
-            build/dbghelp.dll
-            build/symsrv.dll
+            build/x64-Release/dbghelp.dll
+            build/x64-Release/symsrv.dll
             
       - name: Upload Artifact (pdb)
         uses: actions/upload-artifact@v4
